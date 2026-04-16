@@ -9,19 +9,27 @@
         .container { max-width: 1000px; margin: 0 auto; }
         h2 { font-family: monospace; color: #ccc; letter-spacing: 2px; border-bottom: 1px solid #222; padding-bottom: 10px; }
         
-        .search-box { display: flex; gap: 10px; margin-bottom: 20px; }
-        input { flex: 1; padding: 12px; background: #121212; border: 1px solid #222; color: #fff; border-radius: 4px; font-size: 16px; }
-        button.search-btn { padding: 12px 24px; background: #222; color: #fff; border: 1px solid #333; cursor: pointer; border-radius: 4px; font-weight: bold; transition: 0.2s; }
-        button.search-btn:hover { background: #333; }
+        .search-box { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+        input { flex: 1; padding: 12px; background: #121212; border: 1px solid #222; color: #fff; border-radius: 4px; font-size: 16px; min-width: 200px; }
+        button.action-btn { padding: 12px 24px; background: #222; color: #fff; border: 1px solid #333; cursor: pointer; border-radius: 4px; font-weight: bold; transition: 0.2s; }
+        button.action-btn:hover { background: #333; color: #22c55e; }
         
         .panel { background: #121212; border: 1px solid #222; padding: 20px; border-radius: 6px; display: none; margin-bottom: 20px; }
-        .metric-row { display: flex; gap: 20px; margin-top: 15px; }
-        .metric { flex: 1; }
+        .metric-row { display: flex; gap: 20px; margin-top: 15px; flex-wrap: wrap; }
+        .metric { flex: 1; min-width: 150px; }
         .metric-label { font-size: 11px; color: #777; font-weight: bold; text-transform: uppercase; margin-bottom: 5px; }
         .metric-val { font-size: 20px; font-family: monospace; font-weight: bold; color: #fff; }
         
         .sec-box { border-left: 3px solid #eab308; padding: 15px; background: rgba(234, 179, 8, 0.05); margin-top: 20px; }
         
+        /* YENİ TOKEN RADARI TASARIMI */
+        .radar-box { background: #121212; border: 1px solid #222; border-radius: 6px; padding: 15px; margin-top: 30px; }
+        .radar-header { font-size: 13px; font-weight: bold; color: #fff; border-bottom: 1px solid #333; padding-bottom: 10px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+        .radar-item { display: flex; justify-content: space-between; font-family: monospace; font-size: 13px; padding: 12px 10px; border-bottom: 1px solid #1a1a1a; transition: 0.2s; align-items: center; }
+        .radar-item:hover { background: #1a1a1a; }
+        .txt-muted { color: #777; }
+        .badge-new { background: rgba(59, 130, 246, 0.1); color: #3b82f6; border: 1px solid rgba(59, 130, 246, 0.3); padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; }
+
         /* Dil Paneli */
         .lang-sidebar { position: fixed; top: 50%; right: 0; transform: translateY(-50%); display: flex; flex-direction: column; background-color: #121212; border: 1px solid #222; border-right: none; border-radius: 8px 0 0 8px; padding: 10px 5px; gap: 15px; z-index: 1000; }
         .lang-btn { background: transparent; color: #777; border: none; font-family: monospace; font-size: 14px; font-weight: bold; cursor: pointer; transition: 0.2s; }
@@ -30,6 +38,7 @@
         
         a { color: #4da6ff; text-decoration: none; font-size: 13px; margin-right: 10px; }
         #loading { display: none; color: #eab308; font-family: monospace; margin-top: 10px; }
+        .error-msg { display: none; color: #ef4444; background: rgba(239, 68, 68, 0.1); padding: 10px; border-left: 3px solid #ef4444; margin-top: 10px; font-size: 14px; }
     </style>
 </head>
 <body>
@@ -46,9 +55,11 @@
         
         <div class="search-box">
             <input type="text" id="searchInput" placeholder="Hedef Ara (Token veya Adres):">
-            <button class="search-btn" id="searchBtn" onclick="searchToken()">SORGULA</button>
+            <button class="action-btn" id="searchBtn" onclick="searchToken()">SORGULA</button>
         </div>
-        <div id="loading">İstihbarat toplanıyor...</div>
+        
+        <div id="loading">İstihbarat toplanıyor... Lütfen bekleyin.</div>
+        <div id="errorBox" class="error-msg">Bağlantı Hatası: Sunucuya ulaşılamıyor veya geçersiz hedef.</div>
 
         <div class="panel" id="resultPanel">
             <h3 style="margin:0;"><span id="t-name"></span> <span style="color:#777; font-size: 14px;" id="t-symbol"></span></h3>
@@ -78,15 +89,24 @@
             
             <div id="chartContainer" style="margin-top:20px;"></div>
         </div>
+
+        <div class="radar-box">
+            <div class="radar-header">
+                <span id="t-radar2">YENİ ÇIKAN TOKENLAR (CANLI)</span>
+                <button class="action-btn" style="padding: 4px 10px; font-size: 11px;" onclick="fetchLiveTokens()">AĞI TARA</button>
+            </div>
+            <div id="newTokenFeed">
+                <div class="txt-muted" style="padding:10px 0;">Mutfaktan (API) gerçek veri akışı bekleniyor...</div>
+            </div>
+        </div>
     </div>
 
     <script>
-        // DİLLER İÇİN İSİMLER BURADA GÜNCELLENDİ
         const texts = {
-            "TR": { title: "BASE ANALİSTİ", ph: "Hedef Ara (Token veya Adres):", btn: "SORGULA", price: "ANLIK FİYAT", sec: "GÜVENLİK SKORU", secdesc: "Honeypot, Açık Kaynak ve Vergi oranları test edilmiştir.", loading: "İstihbarat toplanıyor..." },
-            "EN": { title: "BASE ANALYST", ph: "Search Target (Token/Address):", btn: "SEARCH", price: "LIVE PRICE", sec: "SECURITY SCORE", secdesc: "Tested for Honeypot, Open Source, and Taxes.", loading: "Gathering intel..." },
-            "KO": { title: "베이스 애널리스트", ph: "대상 검색 (토큰/주소):", btn: "검색", price: "현재 가격", sec: "보안 점수", secdesc: "허니팟, 오픈 소스 및 세금 테스트 완료.", loading: "정보 수집 중..." },
-            "RU": { title: "БАЗОВЫЙ АНАЛИТИК", ph: "Поиск цели (Токен/Адрес):", btn: "ПОИСК", price: "ТЕКУЩАЯ ЦЕНА", sec: "ОЦЕНКА БЕЗОПАСНОСТИ", secdesc: "Проверено на Honeypot, открытый исходный код и налоги.", loading: "Сбор данных..." }
+            "TR": { title: "BASE ANALİSTİ", ph: "Hedef Ara (Token veya Adres):", btn: "SORGULA", price: "ANLIK FİYAT", sec: "GÜVENLİK SKORU", secdesc: "Honeypot, Açık Kaynak ve Vergi oranları test edilmiştir.", loading: "İstihbarat toplanıyor...", radar2: "YENİ ÇIKAN TOKENLAR (CANLI)" },
+            "EN": { title: "BASE ANALYST", ph: "Search Target (Token/Address):", btn: "SEARCH", price: "LIVE PRICE", sec: "SECURITY SCORE", secdesc: "Tested for Honeypot, Open Source, and Taxes.", loading: "Gathering intel...", radar2: "NEWLY DEPLOYED TOKENS (LIVE)" },
+            "KO": { title: "베이스 애널리스트", ph: "대상 검색 (토큰/주소):", btn: "검색", price: "현재 가격", sec: "보안 점수", secdesc: "허니팟, 오픈 소스 및 세금 테스트 완료.", loading: "정보 수집 중...", radar2: "실시간 신규 토큰" },
+            "RU": { title: "БАЗОВЫЙ АНАЛИТИК", ph: "Поиск цели (Токен/Адрес):", btn: "ПОИСК", price: "ТЕКУЩАЯ ЦЕНА", sec: "ОЦЕНКА БЕЗОПАСНОСТИ", secdesc: "Проверено на Honeypot, открытый исходный код и налоги.", loading: "Сбор данных...", radar2: "НОВЫЕ ТОКЕНЫ (LIVE)" }
         };
 
         function changeLang(lang, btn) {
@@ -96,6 +116,7 @@
             document.getElementById("t-pricelabel").innerText = texts[lang].price;
             document.getElementById("t-seclabel").innerText = texts[lang].sec;
             document.getElementById("t-secdesc").innerText = texts[lang].secdesc;
+            document.getElementById("t-radar2").innerText = texts[lang].radar2;
             document.getElementById("loading").innerText = texts[lang].loading;
             
             let btns = document.getElementsByClassName("lang-btn");
@@ -108,10 +129,12 @@
             if(!query) return;
             
             document.getElementById("loading").style.display = "block";
+            document.getElementById("errorBox").style.display = "none";
             document.getElementById("resultPanel").style.display = "none";
             
             try {
                 let res = await fetch('/api/radar?q=' + encodeURIComponent(query));
+                if (!res.ok) throw new Error("Sunucu yanıt vermedi.");
                 let data = await res.json();
                 
                 if(data.success) {
@@ -130,12 +153,24 @@
                     
                     document.getElementById("resultPanel").style.display = "block";
                 } else {
-                    alert("Hedef bulunamadı.");
+                    document.getElementById("errorBox").innerText = "Hedef bulunamadı veya ağda yok.";
+                    document.getElementById("errorBox").style.display = "block";
                 }
             } catch (err) {
-                alert("Bağlantı hatası.");
+                console.error("API Hatası:", err);
+                document.getElementById("errorBox").innerText = "Bağlantı Hatası: Lütfen kodun Vercel üzerinde çalıştığından emin ol.";
+                document.getElementById("errorBox").style.display = "block";
             }
             document.getElementById("loading").style.display = "none";
+        }
+
+        // GERÇEK YENİ TOKEN VERİSİ İÇİN API ÇAĞRISI (Hazırlık)
+        async function fetchLiveTokens() {
+            let feed = document.getElementById("newTokenFeed");
+            feed.innerHTML = `<div class="txt-muted" style="padding:10px 0;">Ağ taranıyor, lütfen bekleyin...</div>`;
+            
+            // İleride Python API'mize (örneğin /api/latest) bağlanarak gerçek verileri buraya çekeceğiz.
+            // Şu an altyapı hazır olarak bekliyor.
         }
     </script>
 </body>
