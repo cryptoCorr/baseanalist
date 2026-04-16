@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Base Analisti</title>
+    <style>
+        body { background-color: #0a0a0a; color: #d4d4d4; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 20px; }
+        .container { max-width: 1000px; margin: 0 auto; }
+        h2 { font-family: monospace; color: #ccc; letter-spacing: 2px; border-bottom: 1px solid #222; padding-bottom: 10px; }
+        
+        .search-box { display: flex; gap: 10px; margin-bottom: 20px; }
+        input { flex: 1; padding: 12px; background: #121212; border: 1px solid #222; color: #fff; border-radius: 4px; font-size: 16px; }
+        button.search-btn { padding: 12px 24px; background: #222; color: #fff; border: 1px solid #333; cursor: pointer; border-radius: 4px; font-weight: bold; transition: 0.2s; }
+        button.search-btn:hover { background: #333; }
+        
+        .panel { background: #121212; border: 1px solid #222; padding: 20px; border-radius: 6px; display: none; margin-bottom: 20px; }
+        .metric-row { display: flex; gap: 20px; margin-top: 15px; }
+        .metric { flex: 1; }
+        .metric-label { font-size: 11px; color: #777; font-weight: bold; text-transform: uppercase; margin-bottom: 5px; }
+        .metric-val { font-size: 20px; font-family: monospace; font-weight: bold; color: #fff; }
+        
+        .sec-box { border-left: 3px solid #eab308; padding: 15px; background: rgba(234, 179, 8, 0.05); margin-top: 20px; }
+        
+        /* Dil Paneli */
+        .lang-sidebar { position: fixed; top: 50%; right: 0; transform: translateY(-50%); display: flex; flex-direction: column; background-color: #121212; border: 1px solid #222; border-right: none; border-radius: 8px 0 0 8px; padding: 10px 5px; gap: 15px; z-index: 1000; }
+        .lang-btn { background: transparent; color: #777; border: none; font-family: monospace; font-size: 14px; font-weight: bold; cursor: pointer; transition: 0.2s; }
+        .lang-btn:hover { color: #fff; transform: scale(1.1); }
+        .lang-btn.active { color: #22c55e; }
+        
+        a { color: #4da6ff; text-decoration: none; font-size: 13px; margin-right: 10px; }
+        #loading { display: none; color: #eab308; font-family: monospace; margin-top: 10px; }
+    </style>
+</head>
+<body>
+
+    <div class="lang-sidebar">
+        <button class="lang-btn active" onclick="changeLang('TR', this)">🇹🇷 TR</button>
+        <button class="lang-btn" onclick="changeLang('EN', this)">🇬🇧 EN</button>
+        <button class="lang-btn" onclick="changeLang('KO', this)">🇰🇷 KO</button>
+        <button class="lang-btn" onclick="changeLang('RU', this)">🇷🇺 RU</button>
+    </div>
+
+    <div class="container">
+        <h2 id="t-title">BASE ANALİSTİ</h2>
+        
+        <div class="search-box">
+            <input type="text" id="searchInput" placeholder="Hedef Ara (Token veya Adres):">
+            <button class="search-btn" id="searchBtn" onclick="searchToken()">SORGULA</button>
+        </div>
+        <div id="loading">İstihbarat toplanıyor...</div>
+
+        <div class="panel" id="resultPanel">
+            <h3 style="margin:0;"><span id="t-name"></span> <span style="color:#777; font-size: 14px;" id="t-symbol"></span></h3>
+            <code style="color:#00ff00; display:block; margin-top:5px;" id="t-address"></code>
+            
+            <div style="margin-top: 15px;">
+                <a id="l-basescan" target="_blank">[ Basescan ]</a>
+                <a id="l-deployer" target="_blank">[ Kurucu (Deployer) ]</a>
+            </div>
+
+            <div class="metric-row">
+                <div class="metric">
+                    <div class="metric-label" id="t-pricelabel">ANLIK FİYAT</div>
+                    <div class="metric-val" id="t-price"></div>
+                </div>
+                <div class="metric">
+                    <div class="metric-label">FDV</div>
+                    <div class="metric-val" id="t-fdv"></div>
+                </div>
+            </div>
+
+            <div class="sec-box">
+                <div class="metric-label" id="t-seclabel">GÜVENLİK SKORU</div>
+                <div class="metric-val" id="t-score" style="color:#22c55e;"></div>
+                <div style="font-size: 12px; color: #777; margin-top: 5px;" id="t-secdesc">Honeypot, Açık Kaynak ve Vergi oranları test edilmiştir.</div>
+            </div>
+            
+            <div id="chartContainer" style="margin-top:20px;"></div>
+        </div>
+    </div>
+
+    <script>
+        // DİLLER İÇİN İSİMLER BURADA GÜNCELLENDİ
+        const texts = {
+            "TR": { title: "BASE ANALİSTİ", ph: "Hedef Ara (Token veya Adres):", btn: "SORGULA", price: "ANLIK FİYAT", sec: "GÜVENLİK SKORU", secdesc: "Honeypot, Açık Kaynak ve Vergi oranları test edilmiştir.", loading: "İstihbarat toplanıyor..." },
+            "EN": { title: "BASE ANALYST", ph: "Search Target (Token/Address):", btn: "SEARCH", price: "LIVE PRICE", sec: "SECURITY SCORE", secdesc: "Tested for Honeypot, Open Source, and Taxes.", loading: "Gathering intel..." },
+            "KO": { title: "베이스 애널리스트", ph: "대상 검색 (토큰/주소):", btn: "검색", price: "현재 가격", sec: "보안 점수", secdesc: "허니팟, 오픈 소스 및 세금 테스트 완료.", loading: "정보 수집 중..." },
+            "RU": { title: "БАЗОВЫЙ АНАЛИТИК", ph: "Поиск цели (Токен/Адрес):", btn: "ПОИСК", price: "ТЕКУЩАЯ ЦЕНА", sec: "ОЦЕНКА БЕЗОПАСНОСТИ", secdesc: "Проверено на Honeypot, открытый исходный код и налоги.", loading: "Сбор данных..." }
+        };
+
+        function changeLang(lang, btn) {
+            document.getElementById("t-title").innerText = texts[lang].title;
+            document.getElementById("searchInput").placeholder = texts[lang].ph;
+            document.getElementById("searchBtn").innerText = texts[lang].btn;
+            document.getElementById("t-pricelabel").innerText = texts[lang].price;
+            document.getElementById("t-seclabel").innerText = texts[lang].sec;
+            document.getElementById("t-secdesc").innerText = texts[lang].secdesc;
+            document.getElementById("loading").innerText = texts[lang].loading;
+            
+            let btns = document.getElementsByClassName("lang-btn");
+            for(let b of btns) b.classList.remove("active");
+            btn.classList.add("active");
+        }
+
+        async function searchToken() {
+            let query = document.getElementById("searchInput").value;
+            if(!query) return;
+            
+            document.getElementById("loading").style.display = "block";
+            document.getElementById("resultPanel").style.display = "none";
+            
+            try {
+                let res = await fetch('/api/radar?q=' + encodeURIComponent(query));
+                let data = await res.json();
+                
+                if(data.success) {
+                    document.getElementById("t-name").innerText = data.name;
+                    document.getElementById("t-symbol").innerText = data.symbol;
+                    document.getElementById("t-address").innerText = data.address;
+                    document.getElementById("t-price").innerText = "$" + parseFloat(data.priceUsd).toFixed(6);
+                    document.getElementById("t-fdv").innerText = data.fdv ? "$" + data.fdv.toLocaleString() : "-";
+                    document.getElementById("t-score").innerText = data.security_score + " / 100";
+                    document.getElementById("t-score").style.color = data.security_score > 80 ? "#22c55e" : "#ef4444";
+                    
+                    document.getElementById("l-basescan").href = "https://basescan.org/token/" + data.address;
+                    document.getElementById("l-deployer").href = "https://basescan.org/address/" + data.address + "#code";
+                    
+                    document.getElementById("chartContainer").innerHTML = `<iframe src="https://dexscreener.com/base/${data.pairAddress}?embed=1&theme=dark" width="100%" height="400" frameborder="0"></iframe>`;
+                    
+                    document.getElementById("resultPanel").style.display = "block";
+                } else {
+                    alert("Hedef bulunamadı.");
+                }
+            } catch (err) {
+                alert("Bağlantı hatası.");
+            }
+            document.getElementById("loading").style.display = "none";
+        }
+    </script>
+</body>
+</html>
